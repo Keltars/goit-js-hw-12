@@ -1,51 +1,80 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
-
 import { fetchImages } from './js/pixabay-api.js';
 import { renderMarkup } from './js/render-functions.js';
 
-const refs = {
-  form: document.querySelector('.search-form'),
-  gallery: document.querySelector('.gallery'),
-  loader: document.querySelector('.loader'),
-};
+const form = document.querySelector('.search-form');
+const gallery = document.querySelector('.gallery');
+const loader = document.querySelector('.loader');
+const loadMoreBtn = document.querySelector('.load-more-btn');
 
-refs.form.addEventListener('submit', event => {
+loadMoreBtn.style.display = 'none';
+let page = 1;
+let totalPages = 1;
+const limit = 15;
+let userSearch;
+
+form.addEventListener('submit', async event => {
   event.preventDefault();
+  page = 1;
+  loader.classList.remove('is-hidden');
+  loadMoreBtn.style.display = 'block';
+  userSearch = event.target.elements.search.value;
+  gallery.innerHTML = '';
+  setTimeout(async () => {
+    try {
+      const images = await fetchImages(userSearch, page, limit);
+      totalPages = Math.ceil(images.totalHits / limit);
 
-  const userSearch = event.target.elements.search.value.trim();
-
-  if (userSearch === '') {
-    iziToast.error({
-      message: 'Please enter text to find something!',
-      position: 'topRight',
-    });
-    return;
-  }
-
-  refs.loader.classList.remove('is-hidden');
-
-  fetchImages(userSearch)
-    .then(images => {
+      loader.classList.add('is-hidden');
       if (images.hits.length === 0) {
-        iziToast.error({
-          message:
-            'Sorry, there are no images matching your search query. Please try again!',
+        loadMoreBtn.style.display = 'none';
+        return iziToast.error({
+          message: 'No images found for your search query.',
           position: 'topRight',
         });
       }
-      refs.form.search.value = '';
-      refs.gallery.innerHTML = '';
-      renderMarkup(images.hits, refs.gallery);
-      refs.loader.style.display = 'none';
-    })
-    .catch(error => {
-      console.error('Error fetching images:', error);
+
+      renderMarkup(images.hits, gallery);
+    } catch (error) {
       iziToast.error({
-        message:
-          'An error occurred while fetching images. Please try again later.',
+        message: `Error during fetching posts: ${error}`,
         position: 'topRight',
       });
-      refs.loader.classList.add('is-hidden');
-    });
+      loader.classList.add('is-hidden');
+    }
+  }, 1000);
+  event.currentTarget.reset();
+});
+
+loadMoreBtn.addEventListener('click', () => {
+  page += 1;
+  loader.classList.remove('is-hidden');
+  setTimeout(async () => {
+    try {
+      const images = await fetchImages(userSearch, page, limit);
+      renderMarkup(images.hits, gallery);
+
+      loader.classList.add('is-hidden');
+
+      if (page >= totalPages) {
+        loadMoreBtn.style.display = 'none';
+        iziToast.info({
+          message: "You've reached the end of search results.",
+          position: 'topRight',
+        });
+      }
+
+      const cardHeight =
+        gallery.firstElementChild.getBoundingClientRect().height;
+
+      window.scrollBy({ top: 2 * cardHeight, behavior: 'smooth' });
+    } catch (error) {
+      iziToast.error({
+        message: `Error during loading more images: ${error}`,
+        position: 'topRight',
+      });
+      loader.classList.add('is-hidden');
+    }
+  }, 1000);
 });
