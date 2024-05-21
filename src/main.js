@@ -17,10 +17,18 @@ let userSearch;
 form.addEventListener('submit', async event => {
   event.preventDefault();
   page = 1;
+  userSearch = event.target.elements.search.value.trim();
+
+  if (!userSearch) {
+    return iziToast.error({
+      message: 'Search query cannot be empty.',
+      position: 'topRight',
+    });
+  }
+
   loader.classList.remove('is-hidden');
-  loadMoreBtn.style.display = 'block';
-  userSearch = event.target.elements.search.value;
   gallery.innerHTML = '';
+
   setTimeout(async () => {
     try {
       const images = await fetchImages(userSearch, page, limit);
@@ -28,7 +36,6 @@ form.addEventListener('submit', async event => {
 
       loader.classList.add('is-hidden');
       if (images.hits.length === 0) {
-        loadMoreBtn.style.display = 'none';
         return iziToast.error({
           message: 'No images found for your search query.',
           position: 'topRight',
@@ -36,6 +43,10 @@ form.addEventListener('submit', async event => {
       }
 
       renderMarkup(images.hits, gallery);
+
+      if (page < totalPages) {
+        loadMoreBtn.style.display = 'block';
+      }
     } catch (error) {
       iziToast.error({
         message: `Error during fetching posts: ${error}`,
@@ -63,6 +74,8 @@ loadMoreBtn.addEventListener('click', () => {
           message: "You've reached the end of search results.",
           position: 'topRight',
         });
+      } else {
+        loadMoreBtn.style.display = 'block';
       }
 
       const cardHeight =
@@ -75,6 +88,7 @@ loadMoreBtn.addEventListener('click', () => {
         position: 'topRight',
       });
       loader.classList.add('is-hidden');
+      loadMoreBtn.style.display = 'none';
     }
   }, 1000);
 });
